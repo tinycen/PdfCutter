@@ -36,6 +36,7 @@ namespace PdfCutter
             {
                 currentPdfPath = fileToOpen;
                 LoadPdfPage(1);
+                this.WindowState = FormWindowState.Maximized;
             }
         }
 
@@ -142,6 +143,7 @@ namespace PdfCutter
                 {
                     currentPdfPath = openFileDialog.FileName;
                     LoadPdfPage(1);
+                    this.WindowState = FormWindowState.Maximized;
                 }
             }
         }
