@@ -10,7 +10,6 @@ namespace PdfCutter
     public partial class Form1 : Form
     {
         private string? currentPdfPath;
-        private iText.Kernel.Pdf.PdfDocument? pdfReaderDoc;
         private PdfiumViewer.PdfDocument? pdfViewerDoc;
         private Image? currentPageImage;
         private Rectangle selectionRectangle;
@@ -20,8 +19,8 @@ namespace PdfCutter
         private Bitmap? cutPreviewImage = null;
         private float lastPrintScale = 1.0f;
         private PrinterSettings printerSettings;
-        private ToolStripComboBox printerComboBox;
-        private ToolStripComboBox paperSizeComboBox;
+        private ToolStripComboBox printerComboBox = null!;
+        private ToolStripComboBox paperSizeComboBox = null!;
 
         public Form1()
         {
@@ -380,7 +379,7 @@ namespace PdfCutter
                 int x = marginBounds.X + (marginBounds.Width - printWidth) / 2;
                 int y = marginBounds.Y + (marginBounds.Height - printHeight) / 2;
                 lastPrintScale = scale;
-                ev.Graphics.DrawImage(imageToPrint, x, y, printWidth, printHeight);
+                ev.Graphics!.DrawImage(imageToPrint, x, y, printWidth, printHeight);
             };
         }
 
@@ -513,23 +512,60 @@ namespace PdfCutter
         {
             if (currentPageImage == null) return;
             var bmp = new Bitmap(currentPageImage);
-            int left = bmp.Width, top = bmp.Height, right = 0, bottom = 0;
-            for (int y = 0; y < bmp.Height; y++)
+
+            // 确保为 32bppArgb，便于高效扫描
+            if (bmp.PixelFormat != PixelFormat.Format32bppArgb)
             {
-                for (int x = 0; x < bmp.Width; x++)
+                var converted = new Bitmap(bmp.Width, bmp.Height, PixelFormat.Format32bppArgb);
+                using (var g = Graphics.FromImage(converted))
                 {
-                    var color = bmp.GetPixel(x, y);
-                    // 判断是否为非白色像素
-                    if (color.R < 240 || color.G < 240 || color.B < 240)
+                    g.DrawImageUnscaled(bmp, 0, 0);
+                }
+                bmp.Dispose();
+                bmp = converted;
+            }
+
+            int left = bmp.Width, top = bmp.Height, right = -1, bottom = -1;
+            Rectangle rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
+            BitmapData data = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
+            {
+                int stride = data.Stride;
+                int width = bmp.Width;
+                int height = bmp.Height;
+                int byteCount = stride * height;
+                byte[] buffer = new byte[byteCount];
+                System.Runtime.InteropServices.Marshal.Copy(data.Scan0, buffer, 0, byteCount);
+
+                const byte threshold = 240;
+                for (int y = 0; y < height; y++)
+                {
+                    int rowOffset = y * stride;
+                    for (int x = 0; x < width; x++)
                     {
-                        if (x < left) left = x;
-                        if (y < top) top = y;
-                        if (x > right) right = x;
-                        if (y > bottom) bottom = y;
+                        int idx = rowOffset + (x << 2); // x * 4
+                        byte b = buffer[idx + 0];
+                        byte g = buffer[idx + 1];
+                        byte r = buffer[idx + 2];
+                        byte a = buffer[idx + 3];
+
+                        // 透明像素忽略；非白阈值检测
+                        if (a != 0 && (r < threshold || g < threshold || b < threshold))
+                        {
+                            if (x < left) left = x;
+                            if (y < top) top = y;
+                            if (x > right) right = x;
+                            if (y > bottom) bottom = y;
+                        }
                     }
                 }
             }
-            if (left < right && top < bottom)
+            finally
+            {
+                bmp.UnlockBits(data);
+            }
+
+            if (right >= 0 && bottom >= 0 && left < right && top < bottom)
             {
                 float scale = Math.Min((float)pictureBoxMain.Width / bmp.Width, (float)pictureBoxMain.Height / bmp.Height);
                 int imageWidth = (int)(bmp.Width * scale);
