@@ -35,16 +35,17 @@ namespace PdfCutter
         {
             // Create printer selection combobox
             printerComboBox = new ToolStripComboBox();
-            printerComboBox.Width = 200;
+            printerComboBox.Width = 200; // 保持原宽度
             printerComboBox.ToolTipText = "选择打印机";
             foreach (string printer in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
             {
                 printerComboBox.Items.Add(printer);
             }
-            
+
             // Create paper size combobox
             paperSizeComboBox = new ToolStripComboBox();
-            paperSizeComboBox.Width = 150;
+            paperSizeComboBox.AutoSize = false; // 关键设置
+            paperSizeComboBox.Width = 200; // 增加到500
             paperSizeComboBox.ToolTipText = "选择纸张尺寸";
 
             // Add controls to mainToolStrip at the beginning
@@ -305,14 +306,14 @@ namespace PdfCutter
                 saveFileDialog.Filter = "PNG图片 (*.png)|*.png|JPEG图片 (*.jpg)|*.jpg|BMP图片 (*.bmp)|*.bmp|所有文件 (*.*)|*.*";
                 saveFileDialog.FilterIndex = 1;
                 saveFileDialog.FileName = "cut_preview";
-                
+
                 if (saveFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     try
                     {
                         ImageFormat format = ImageFormat.Png; // 默认PNG格式
                         string extension = Path.GetExtension(saveFileDialog.FileName).ToLower();
-                        
+
                         // 根据文件扩展名选择保存格式
                         switch (extension)
                         {
@@ -324,7 +325,7 @@ namespace PdfCutter
                                 format = ImageFormat.Bmp;
                                 break;
                         }
-                        
+
                         cutPreviewImage.Save(saveFileDialog.FileName, format);
                         MessageBox.Show("保存成功！", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
@@ -542,6 +543,11 @@ namespace PdfCutter
                 pictureBoxMain.Invalidate();
             }
             bmp.Dispose();
+        }
+
+        private void mainToolStrip_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
+        {
+
         }
     }
 }
