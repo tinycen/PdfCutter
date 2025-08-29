@@ -282,6 +282,30 @@ namespace PdfCutter
             }
         }
 
+        private void SetupPrintDocument(PrintDocument printDoc, Image imageToPrint)
+        {
+            // 计算图片和纸张的纵横比
+            double imageAspectRatio = (double)imageToPrint.Width / imageToPrint.Height;
+            double paperAspectRatio = (double)printDoc.DefaultPageSettings.PaperSize.Width / printDoc.DefaultPageSettings.PaperSize.Height;
+            bool shouldBeLandscape = imageAspectRatio > 1;
+
+            // 提前设置方向
+            printDoc.DefaultPageSettings.Landscape = shouldBeLandscape;
+
+            printDoc.PrintPage += (s, ev) =>
+            {
+                Rectangle marginBounds = ev.MarginBounds;
+                // 缩放并居中
+                float scale = Math.Min((float)marginBounds.Width / imageToPrint.Width, (float)marginBounds.Height / imageToPrint.Height);
+                int printWidth = (int)(imageToPrint.Width * scale);
+                int printHeight = (int)(imageToPrint.Height * scale);
+                int x = marginBounds.X + (marginBounds.Width - printWidth) / 2;
+                int y = marginBounds.Y + (marginBounds.Height - printHeight) / 2;
+                lastPrintScale = scale;
+                ev.Graphics.DrawImage(imageToPrint, x, y, printWidth, printHeight);
+            };
+        }
+
         private void btnPrint_Click(object sender, EventArgs e)
         {
             Image? imageToPrint = cutPreviewImage ?? currentPageImage;
@@ -290,21 +314,13 @@ namespace PdfCutter
                 MessageBox.Show("没有可打印的内容。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
             using (PrintDialog printDialog = new PrintDialog())
             {
                 PrintDocument printDoc = new PrintDocument();
-                printDoc.PrintPage += (s, ev) =>
-                {
-                    Rectangle marginBounds = ev.MarginBounds;
-                    float scale = Math.Min((float)marginBounds.Width / imageToPrint.Width, (float)marginBounds.Height / imageToPrint.Height);
-                    lastPrintScale = scale; // 保存缩放比例
-                    int printWidth = (int)(imageToPrint.Width * scale);
-                    int printHeight = (int)(imageToPrint.Height * scale);
-                    int x = marginBounds.X + (marginBounds.Width - printWidth) / 2;
-                    int y = marginBounds.Y + (marginBounds.Height - printHeight) / 2;
-                    ev.Graphics.DrawImage(imageToPrint, x, y, printWidth, printHeight);
-                };
+                SetupPrintDocument(printDoc, imageToPrint);
                 printDialog.Document = printDoc;
+
                 if (printDialog.ShowDialog() == DialogResult.OK)
                 {
                     try
@@ -333,7 +349,7 @@ namespace PdfCutter
             using (PrintPreviewControl previewControl = new PrintPreviewControl())
             using (PrintDocument printDoc = new PrintDocument())
             {
-                // 设置预览窗口属性
+                // 设置预览窗口
                 previewForm.Text = "打印预览";
                 previewForm.WindowState = FormWindowState.Maximized;
 
@@ -353,18 +369,8 @@ namespace PdfCutter
                 previewForm.Controls.Add(previewControl);
                 previewForm.Controls.Add(toolStrip);
 
-                // 打印页面处理
-                printDoc.PrintPage += (s, ev) =>
-                {
-                    Rectangle marginBounds = ev.MarginBounds;
-                    float scale = Math.Min((float)marginBounds.Width / imageToPrint.Width, (float)marginBounds.Height / imageToPrint.Height);
-                    lastPrintScale = scale;
-                    int printWidth = (int)(imageToPrint.Width * scale);
-                    int printHeight = (int)(imageToPrint.Height * scale);
-                    int x = marginBounds.X + (marginBounds.Width - printWidth) / 2;
-                    int y = marginBounds.Y + (marginBounds.Height - printHeight) / 2;
-                    ev.Graphics.DrawImage(imageToPrint, x, y, printWidth, printHeight);
-                };
+                // 设置打印文档
+                SetupPrintDocument(printDoc, imageToPrint);
 
                 // 页面设置按钮事件
                 pageSetupButton.Click += (s, ev) =>
