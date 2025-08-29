@@ -358,6 +358,9 @@ namespace PdfCutter
                 }
             }
 
+            // 设置默认页边距为 1（单位：百分之一英寸）
+            printDoc.DefaultPageSettings.Margins = new Margins(1, 1, 1, 1);
+
             // 计算图片和纸张的纵横比
             double imageAspectRatio = (double)imageToPrint.Width / imageToPrint.Height;
             double paperAspectRatio = (double)printDoc.DefaultPageSettings.PaperSize.Width / printDoc.DefaultPageSettings.PaperSize.Height;
