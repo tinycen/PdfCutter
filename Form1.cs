@@ -251,28 +251,31 @@ namespace PdfCutter
             }
             using (SaveFileDialog saveFileDialog = new SaveFileDialog())
             {
-                saveFileDialog.Filter = "PDF files (*.pdf)|*.pdf";
-                saveFileDialog.FileName = "cut_preview.pdf";
+                saveFileDialog.Filter = "PNG图片 (*.png)|*.png|JPEG图片 (*.jpg)|*.jpg|BMP图片 (*.bmp)|*.bmp|所有文件 (*.*)|*.*";
+                saveFileDialog.FilterIndex = 1;
+                saveFileDialog.FileName = "cut_preview";
+                
                 if (saveFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     try
                     {
-                        using (var ms = new System.IO.MemoryStream())
+                        ImageFormat format = ImageFormat.Png; // 默认PNG格式
+                        string extension = Path.GetExtension(saveFileDialog.FileName).ToLower();
+                        
+                        // 根据文件扩展名选择保存格式
+                        switch (extension)
                         {
-                            cutPreviewImage.Save(ms, ImageFormat.Png);
-                            ms.Position = 0;
-                            using (var writer = new iText.Kernel.Pdf.PdfWriter(saveFileDialog.FileName))
-                            {
-                                var pdfDoc = new iText.Kernel.Pdf.PdfDocument(writer);
-                                var doc = new iText.Layout.Document(pdfDoc);
-                                var img = new iText.Layout.Element.Image(iText.IO.Image.ImageDataFactory.Create(ms.ToArray()));
-                                img.SetAutoScale(true);
-                                doc.Add(img);
-                                doc.Close();
-                                pdfDoc.Close();
-                            }
+                            case ".jpg":
+                            case ".jpeg":
+                                format = ImageFormat.Jpeg;
+                                break;
+                            case ".bmp":
+                                format = ImageFormat.Bmp;
+                                break;
                         }
-                        MessageBox.Show("保存成功!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        cutPreviewImage.Save(saveFileDialog.FileName, format);
+                        MessageBox.Show("保存成功！", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {

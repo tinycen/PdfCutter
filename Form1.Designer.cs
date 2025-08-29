@@ -54,7 +54,7 @@
             tableLayoutPanel1.RowCount = 2;
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
             tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableLayoutPanel1.Size = new Size(700, 510);
+            tableLayoutPanel1.Size = new Size(918, 519);
             tableLayoutPanel1.TabIndex = 0;
             // 
             // flowLayoutPanel1
@@ -62,13 +62,13 @@
             flowLayoutPanel1.Controls.Add(btnOpenPdf);
             flowLayoutPanel1.Controls.Add(btnAutoDetect);
             flowLayoutPanel1.Controls.Add(btnCut);
-            flowLayoutPanel1.Controls.Add(btnSave);
-            flowLayoutPanel1.Controls.Add(btnPrint);
             flowLayoutPanel1.Controls.Add(btnPrintPreview);
+            flowLayoutPanel1.Controls.Add(btnPrint);
+            flowLayoutPanel1.Controls.Add(btnSave);
             flowLayoutPanel1.Dock = DockStyle.Fill;
             flowLayoutPanel1.Location = new Point(3, 3);
             flowLayoutPanel1.Name = "flowLayoutPanel1";
-            flowLayoutPanel1.Size = new Size(694, 28);
+            flowLayoutPanel1.Size = new Size(912, 28);
             flowLayoutPanel1.TabIndex = 0;
             // 
             // btnOpenPdf
@@ -103,11 +103,11 @@
             // 
             // btnSave
             // 
-            btnSave.Location = new Point(307, 3);
+            btnSave.Location = new Point(507, 3);
             btnSave.Name = "btnSave";
-            btnSave.Size = new Size(94, 29);
+            btnSave.Size = new Size(94, 25);
             btnSave.TabIndex = 3;
-            btnSave.Text = "保存";
+            btnSave.Text = "保存为图片";
             btnSave.UseVisualStyleBackColor = true;
             btnSave.Click += btnSave_Click;
             // 
@@ -115,7 +115,7 @@
             // 
             btnPrint.Location = new Point(407, 3);
             btnPrint.Name = "btnPrint";
-            btnPrint.Size = new Size(94, 29);
+            btnPrint.Size = new Size(94, 25);
             btnPrint.TabIndex = 4;
             btnPrint.Text = "打印";
             btnPrint.UseVisualStyleBackColor = true;
@@ -123,9 +123,9 @@
             // 
             // btnPrintPreview
             // 
-            btnPrintPreview.Location = new Point(507, 3);
+            btnPrintPreview.Location = new Point(307, 3);
             btnPrintPreview.Name = "btnPrintPreview";
-            btnPrintPreview.Size = new Size(94, 29);
+            btnPrintPreview.Size = new Size(94, 25);
             btnPrintPreview.TabIndex = 5;
             btnPrintPreview.Text = "打印预览";
             btnPrintPreview.UseVisualStyleBackColor = true;
@@ -137,7 +137,7 @@
             pictureBox.Dock = DockStyle.Fill;
             pictureBox.Location = new Point(3, 37);
             pictureBox.Name = "pictureBox";
-            pictureBox.Size = new Size(694, 470);
+            pictureBox.Size = new Size(912, 479);
             pictureBox.SizeMode = PictureBoxSizeMode.Zoom;
             pictureBox.TabIndex = 1;
             pictureBox.TabStop = false;
@@ -150,7 +150,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(700, 510);
+            ClientSize = new Size(918, 519);
             Controls.Add(tableLayoutPanel1);
             Name = "Form1";
             Text = "PDF Cutter";
