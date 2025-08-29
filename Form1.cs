@@ -30,6 +30,15 @@ namespace PdfCutter
             InitializePrinterControls();
         }
 
+        public Form1(string? fileToOpen) : this()
+        {
+            if (!string.IsNullOrWhiteSpace(fileToOpen) && File.Exists(fileToOpen))
+            {
+                currentPdfPath = fileToOpen;
+                LoadPdfPage(1);
+            }
+        }
+
         private void InitializePrinterControls()
         {
             // Create printer selection combobox
