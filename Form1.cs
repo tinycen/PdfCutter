@@ -3,6 +3,7 @@ using iText.Kernel.Utils;
 using PdfiumViewer;
 using System.Drawing.Imaging;
 using System.Drawing.Printing;
+using System.Windows.Forms;
 
 namespace PdfCutter
 {
@@ -17,6 +18,7 @@ namespace PdfCutter
         private bool isSelecting = false;
         private int currentPage = 1;
         private Bitmap? cutPreviewImage = null;
+        private float lastPrintScale = 1.0f; // 保存最近一次打印的缩放比例
 
         public Form1()
         {
@@ -293,9 +295,9 @@ namespace PdfCutter
                 PrintDocument printDoc = new PrintDocument();
                 printDoc.PrintPage += (s, ev) =>
                 {
-                    // 计算图片适应页面的大小
                     Rectangle marginBounds = ev.MarginBounds;
                     float scale = Math.Min((float)marginBounds.Width / imageToPrint.Width, (float)marginBounds.Height / imageToPrint.Height);
+                    lastPrintScale = scale; // 保存缩放比例
                     int printWidth = (int)(imageToPrint.Width * scale);
                     int printHeight = (int)(imageToPrint.Height * scale);
                     int x = marginBounds.X + (marginBounds.Width - printWidth) / 2;
@@ -308,12 +310,105 @@ namespace PdfCutter
                     try
                     {
                         printDoc.Print();
+                        MessageBox.Show($"打印缩放比例: {lastPrintScale:F2}", "打印信息", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
                         MessageBox.Show($"打印出错: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
+            }
+        }
+
+        private void btnPrintPreview_Click(object sender, EventArgs e)
+        {
+            Image? imageToPrint = cutPreviewImage ?? currentPageImage;
+            if (imageToPrint == null)
+            {
+                MessageBox.Show("没有可预览的内容。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (Form previewForm = new Form())
+            using (PrintPreviewControl previewControl = new PrintPreviewControl())
+            using (PrintDocument printDoc = new PrintDocument())
+            {
+                // 设置预览窗口属性
+                previewForm.Text = "打印预览";
+                previewForm.WindowState = FormWindowState.Maximized;
+
+                // 创建工具栏
+                ToolStrip toolStrip = new ToolStrip();
+                ToolStripButton pageSetupButton = new ToolStripButton("页面设置");
+                ToolStripButton printerButton = new ToolStripButton("打印机设置");
+                ToolStripButton printButton = new ToolStripButton("打印");
+                toolStrip.Items.AddRange(new ToolStripItem[] { pageSetupButton, printerButton, printButton });
+
+                // 设置预览控件
+                previewControl.Document = printDoc;
+                previewControl.UseAntiAlias = true;
+                previewControl.Dock = DockStyle.Fill;
+
+                // 添加控件到窗口
+                previewForm.Controls.Add(previewControl);
+                previewForm.Controls.Add(toolStrip);
+
+                // 打印页面处理
+                printDoc.PrintPage += (s, ev) =>
+                {
+                    Rectangle marginBounds = ev.MarginBounds;
+                    float scale = Math.Min((float)marginBounds.Width / imageToPrint.Width, (float)marginBounds.Height / imageToPrint.Height);
+                    lastPrintScale = scale;
+                    int printWidth = (int)(imageToPrint.Width * scale);
+                    int printHeight = (int)(imageToPrint.Height * scale);
+                    int x = marginBounds.X + (marginBounds.Width - printWidth) / 2;
+                    int y = marginBounds.Y + (marginBounds.Height - printHeight) / 2;
+                    ev.Graphics.DrawImage(imageToPrint, x, y, printWidth, printHeight);
+                };
+
+                // 页面设置按钮事件
+                pageSetupButton.Click += (s, ev) =>
+                {
+                    using (PageSetupDialog pageSetupDialog = new PageSetupDialog())
+                    {
+                        pageSetupDialog.Document = printDoc;
+                        if (pageSetupDialog.ShowDialog(previewForm) == DialogResult.OK)
+                        {
+                            previewControl.InvalidatePreview();
+                        }
+                    }
+                };
+
+                // 打印机设置按钮事件
+                printerButton.Click += (s, ev) =>
+                {
+                    using (PrintDialog printDialog = new PrintDialog())
+                    {
+                        printDialog.Document = printDoc;
+                        if (printDialog.ShowDialog(previewForm) == DialogResult.OK)
+                        {
+                            previewControl.InvalidatePreview();
+                        }
+                    }
+                };
+
+                // 打印按钮事件
+                printButton.Click += (s, ev) =>
+                {
+                    try
+                    {
+                        printDoc.Print();
+                        MessageBox.Show($"打印缩放比例: {lastPrintScale:F2}", "打印信息", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        previewForm.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"打印出错: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                };
+
+                // 显示预览窗口
+                previewForm.ShowDialog();
             }
         }
 
