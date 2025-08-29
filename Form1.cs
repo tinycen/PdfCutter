@@ -18,12 +18,108 @@ namespace PdfCutter
         private bool isSelecting = false;
         private int currentPage = 1;
         private Bitmap? cutPreviewImage = null;
-        private float lastPrintScale = 1.0f; // 保存最近一次打印的缩放比例
+        private float lastPrintScale = 1.0f;
+        private PrinterSettings printerSettings;
+        private ToolStripComboBox printerComboBox;
+        private ToolStripComboBox paperSizeComboBox;
 
         public Form1()
         {
             InitializeComponent();
             this.DoubleBuffered = true;
+            printerSettings = PrinterSettings.Load();
+            InitializePrinterControls();
+        }
+
+        private void InitializePrinterControls()
+        {
+            // Create printer selection combobox
+            printerComboBox = new ToolStripComboBox();
+            printerComboBox.Width = 200;
+            printerComboBox.ToolTipText = "选择打印机";
+            foreach (string printer in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
+            {
+                printerComboBox.Items.Add(printer);
+            }
+            
+            // Create paper size combobox
+            paperSizeComboBox = new ToolStripComboBox();
+            paperSizeComboBox.Width = 150;
+            paperSizeComboBox.ToolTipText = "选择纸张尺寸";
+
+            // Add controls to mainToolStrip at the beginning
+            mainToolStrip.Items.Insert(0, new ToolStripLabel("打印机: "));
+            mainToolStrip.Items.Insert(1, printerComboBox);
+            mainToolStrip.Items.Insert(2, new ToolStripSeparator());
+            mainToolStrip.Items.Insert(3, new ToolStripLabel("纸张: "));
+            mainToolStrip.Items.Insert(4, paperSizeComboBox);
+            mainToolStrip.Items.Insert(5, new ToolStripSeparator());
+
+            // Restore last used printer
+            if (!string.IsNullOrEmpty(printerSettings.LastUsedPrinter))
+            {
+                int index = printerComboBox.Items.IndexOf(printerSettings.LastUsedPrinter);
+                if (index >= 0)
+                {
+                    printerComboBox.SelectedIndex = index;
+                }
+            }
+
+            printerComboBox.SelectedIndexChanged += PrinterComboBox_SelectedIndexChanged;
+            paperSizeComboBox.SelectedIndexChanged += PaperSizeComboBox_SelectedIndexChanged;
+
+            // Initialize paper sizes for default/saved printer
+            if (printerComboBox.SelectedItem != null)
+            {
+                UpdatePaperSizes(printerComboBox.SelectedItem.ToString()!);
+            }
+        }
+
+        private void PrinterComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (printerComboBox.SelectedItem != null)
+            {
+                string selectedPrinter = printerComboBox.SelectedItem.ToString()!;
+                UpdatePaperSizes(selectedPrinter);
+                printerSettings.LastUsedPrinter = selectedPrinter;
+                printerSettings.Save();
+            }
+        }
+
+        private void PaperSizeComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (paperSizeComboBox.SelectedItem != null)
+            {
+                printerSettings.LastUsedPaperName = paperSizeComboBox.SelectedItem.ToString();
+                printerSettings.Save();
+            }
+        }
+
+        private void UpdatePaperSizes(string printerName)
+        {
+            paperSizeComboBox.Items.Clear();
+            var printSettings = new System.Drawing.Printing.PrinterSettings();
+            printSettings.PrinterName = printerName;
+
+            foreach (System.Drawing.Printing.PaperSize paperSize in printSettings.PaperSizes)
+            {
+                paperSizeComboBox.Items.Add(paperSize.PaperName);
+            }
+
+            // Restore last used paper size
+            if (!string.IsNullOrEmpty(printerSettings.LastUsedPaperName))
+            {
+                int index = paperSizeComboBox.Items.IndexOf(printerSettings.LastUsedPaperName);
+                if (index >= 0)
+                {
+                    paperSizeComboBox.SelectedIndex = index;
+                    return;
+                }
+            }
+
+            // Default to A4 if available, otherwise select first paper size
+            int a4Index = paperSizeComboBox.Items.IndexOf("A4");
+            paperSizeComboBox.SelectedIndex = a4Index >= 0 ? a4Index : 0;
         }
 
         private void btnOpenPdf_Click(object sender, EventArgs e)
@@ -39,45 +135,6 @@ namespace PdfCutter
                     LoadPdfPage(1);
                 }
             }
-        }
-
-        private void btnAutoDetect_Click(object sender, EventArgs e)
-        {
-            if (currentPageImage == null) return;
-            var bmp = new Bitmap(currentPageImage);
-            int left = bmp.Width, top = bmp.Height, right = 0, bottom = 0;
-            for (int y = 0; y < bmp.Height; y++)
-            {
-                for (int x = 0; x < bmp.Width; x++)
-                {
-                    var color = bmp.GetPixel(x, y);
-                    // 判断是否为非白色像素
-                    if (color.R < 240 || color.G < 240 || color.B < 240)
-                    {
-                        if (x < left) left = x;
-                        if (y < top) top = y;
-                        if (x > right) right = x;
-                        if (y > bottom) bottom = y;
-                    }
-                }
-            }
-            if (left < right && top < bottom)
-            {
-                float scale = Math.Min((float)pictureBox.Width / bmp.Width, (float)pictureBox.Height / bmp.Height);
-                int imageWidth = (int)(bmp.Width * scale);
-                int imageHeight = (int)(bmp.Height * scale);
-                int imageX = (pictureBox.Width - imageWidth) / 2;
-                int imageY = (pictureBox.Height - imageHeight) / 2;
-                selectionRectangle = new Rectangle(
-                    (int)(left * scale) + imageX,
-                    (int)(top * scale) + imageY,
-                    (int)((right - left) * scale),
-                    (int)((bottom - top) * scale)
-                );
-                isSelecting = true; // 保证红色框线可视化
-                pictureBox.Invalidate();
-            }
-            bmp.Dispose();
         }
 
         private void LoadPdfPage(int pageNumber)
@@ -98,16 +155,14 @@ namespace PdfCutter
                 pdfViewerDoc = PdfiumViewer.PdfDocument.Load(currentPdfPath);
                 currentPage = pageNumber;
                 var size = pdfViewerDoc.PageSizes[pageNumber - 1];
-                // 提高渲染分辨率
                 int dpi = 200;
                 int renderWidth = (int)(size.Width * dpi / 72.0);
                 int renderHeight = (int)(size.Height * dpi / 72.0);
                 currentPageImage = pdfViewerDoc.Render(pageNumber - 1, renderWidth, renderHeight, dpi, dpi, false);
                 cutPreviewImage?.Dispose();
                 cutPreviewImage = null;
-                pictureBox.Image = null;
-                // 显示当前页面
-                pictureBox.Invalidate();
+                pictureBoxMain.Image = null;
+                pictureBoxMain.Invalidate();
             }
             catch (Exception ex)
             {
@@ -119,23 +174,21 @@ namespace PdfCutter
         {
             if (cutPreviewImage != null)
             {
-                // 预览裁剪后的图片
-                e.Graphics.DrawImage(cutPreviewImage, 0, 0, pictureBox.Width, pictureBox.Height);
+                e.Graphics.DrawImage(cutPreviewImage, 0, 0, pictureBoxMain.Width, pictureBoxMain.Height);
                 return;
             }
 
             if (currentPageImage != null)
             {
-                // Calculate scaling to fit the image while maintaining aspect ratio
                 float scale = Math.Min(
-                    (float)pictureBox.Width / currentPageImage.Width,
-                    (float)pictureBox.Height / currentPageImage.Height
+                    (float)pictureBoxMain.Width / currentPageImage.Width,
+                    (float)pictureBoxMain.Height / currentPageImage.Height
                 );
 
                 int width = (int)(currentPageImage.Width * scale);
                 int height = (int)(currentPageImage.Height * scale);
-                int x = (pictureBox.Width - width) / 2;
-                int y = (pictureBox.Height - height) / 2;
+                int x = (pictureBoxMain.Width - width) / 2;
+                int y = (pictureBoxMain.Height - height) / 2;
 
                 e.Graphics.DrawImage(currentPageImage, x, y, width, height);
 
@@ -156,7 +209,7 @@ namespace PdfCutter
                 isSelecting = true;
                 selectionStart = e.Location;
                 selectionRectangle = new Rectangle(e.Location, new Size(0, 0));
-                pictureBox.Invalidate();
+                pictureBoxMain.Invalidate();
             }
         }
 
@@ -170,7 +223,7 @@ namespace PdfCutter
                 int height = Math.Abs(e.Y - selectionStart.Value.Y);
 
                 selectionRectangle = new Rectangle(x, y, width, height);
-                pictureBox.Invalidate();
+                pictureBoxMain.Invalidate();
             }
         }
 
@@ -190,18 +243,16 @@ namespace PdfCutter
         {
             if (currentPageImage == null) return Rectangle.Empty;
 
-            // Calculate scaling and offset
             float scale = Math.Min(
-                (float)pictureBox.Width / currentPageImage.Width,
-                (float)pictureBox.Height / currentPageImage.Height
+                (float)pictureBoxMain.Width / currentPageImage.Width,
+                (float)pictureBoxMain.Height / currentPageImage.Height
             );
 
             int imageWidth = (int)(currentPageImage.Width * scale);
             int imageHeight = (int)(currentPageImage.Height * scale);
-            int imageX = (pictureBox.Width - imageWidth) / 2;
-            int imageY = (pictureBox.Height - imageHeight) / 2;
+            int imageX = (pictureBoxMain.Width - imageWidth) / 2;
+            int imageY = (pictureBoxMain.Height - imageHeight) / 2;
 
-            // Convert screen coordinates to image coordinates
             int x = (int)((screenRect.X - imageX) / scale);
             int y = (int)((screenRect.Y - imageY) / scale);
             int width = (int)(screenRect.Width / scale);
@@ -238,8 +289,8 @@ namespace PdfCutter
             }
             srcBmp.Dispose();
             // 用裁剪后的图片刷新预览
-            pictureBox.Image = cutPreviewImage;
-            pictureBox.Invalidate();
+            pictureBoxMain.Image = cutPreviewImage;
+            pictureBoxMain.Invalidate();
         }
 
         private void btnSave_Click(object sender, EventArgs e)
@@ -287,18 +338,38 @@ namespace PdfCutter
 
         private void SetupPrintDocument(PrintDocument printDoc, Image imageToPrint)
         {
+            // 使用选择的打印机
+            if (!string.IsNullOrEmpty(printerSettings.LastUsedPrinter))
+            {
+                printDoc.PrinterSettings.PrinterName = printerSettings.LastUsedPrinter;
+            }
+
+            // 设置纸张大小
+            if (!string.IsNullOrEmpty(printerSettings.LastUsedPaperName))
+            {
+                foreach (System.Drawing.Printing.PaperSize paperSize in printDoc.PrinterSettings.PaperSizes)
+                {
+                    if (paperSize.PaperName == printerSettings.LastUsedPaperName)
+                    {
+                        printDoc.DefaultPageSettings.PaperSize = paperSize;
+                        break;
+                    }
+                }
+            }
+
             // 计算图片和纸张的纵横比
             double imageAspectRatio = (double)imageToPrint.Width / imageToPrint.Height;
             double paperAspectRatio = (double)printDoc.DefaultPageSettings.PaperSize.Width / printDoc.DefaultPageSettings.PaperSize.Height;
             bool shouldBeLandscape = imageAspectRatio > 1;
 
-            // 提前设置方向
+            // 设置方向
             printDoc.DefaultPageSettings.Landscape = shouldBeLandscape;
+            printerSettings.Landscape = shouldBeLandscape;
+            printerSettings.Save();
 
             printDoc.PrintPage += (s, ev) =>
             {
                 Rectangle marginBounds = ev.MarginBounds;
-                // 缩放并居中
                 float scale = Math.Min((float)marginBounds.Width / imageToPrint.Width, (float)marginBounds.Height / imageToPrint.Height);
                 int printWidth = (int)(imageToPrint.Width * scale);
                 int printHeight = (int)(imageToPrint.Height * scale);
@@ -432,6 +503,45 @@ namespace PdfCutter
             {
                 currentPageImage.Dispose();
             }
+        }
+
+        private void btnAutoDetect_Click(object sender, EventArgs e)
+        {
+            if (currentPageImage == null) return;
+            var bmp = new Bitmap(currentPageImage);
+            int left = bmp.Width, top = bmp.Height, right = 0, bottom = 0;
+            for (int y = 0; y < bmp.Height; y++)
+            {
+                for (int x = 0; x < bmp.Width; x++)
+                {
+                    var color = bmp.GetPixel(x, y);
+                    // 判断是否为非白色像素
+                    if (color.R < 240 || color.G < 240 || color.B < 240)
+                    {
+                        if (x < left) left = x;
+                        if (y < top) top = y;
+                        if (x > right) right = x;
+                        if (y > bottom) bottom = y;
+                    }
+                }
+            }
+            if (left < right && top < bottom)
+            {
+                float scale = Math.Min((float)pictureBoxMain.Width / bmp.Width, (float)pictureBoxMain.Height / bmp.Height);
+                int imageWidth = (int)(bmp.Width * scale);
+                int imageHeight = (int)(bmp.Height * scale);
+                int imageX = (pictureBoxMain.Width - imageWidth) / 2;
+                int imageY = (pictureBoxMain.Height - imageHeight) / 2;
+                selectionRectangle = new Rectangle(
+                    (int)(left * scale) + imageX,
+                    (int)(top * scale) + imageY,
+                    (int)((right - left) * scale),
+                    (int)((bottom - top) * scale)
+                );
+                isSelecting = true;
+                pictureBoxMain.Invalidate();
+            }
+            bmp.Dispose();
         }
     }
 }
