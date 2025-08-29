@@ -34,6 +34,7 @@
             btnAutoDetect = new Button();
             btnCut = new Button();
             btnSave = new Button();
+            btnPrint = new Button();
             pictureBox = new PictureBox();
             tableLayoutPanel1.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
@@ -61,6 +62,7 @@
             flowLayoutPanel1.Controls.Add(btnAutoDetect);
             flowLayoutPanel1.Controls.Add(btnCut);
             flowLayoutPanel1.Controls.Add(btnSave);
+            flowLayoutPanel1.Controls.Add(btnPrint);
             flowLayoutPanel1.Dock = DockStyle.Fill;
             flowLayoutPanel1.Location = new Point(3, 3);
             flowLayoutPanel1.Name = "flowLayoutPanel1";
@@ -107,6 +109,16 @@
             btnSave.UseVisualStyleBackColor = true;
             btnSave.Click += btnSave_Click;
             // 
+            // btnPrint
+            // 
+            btnPrint.Location = new Point(407, 3);
+            btnPrint.Name = "btnPrint";
+            btnPrint.Size = new Size(94, 29);
+            btnPrint.TabIndex = 4;
+            btnPrint.Text = "打印";
+            btnPrint.UseVisualStyleBackColor = true;
+            btnPrint.Click += btnPrint_Click;
+            // 
             // pictureBox
             // 
             pictureBox.BackColor = SystemColors.ControlLight;
@@ -144,6 +156,7 @@
         private Button btnCut;
         private Button btnAutoDetect;
         private Button btnSave;
+        private Button btnPrint;
         private PictureBox pictureBox;
     }
 }

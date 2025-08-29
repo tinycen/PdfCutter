@@ -2,6 +2,7 @@
 using iText.Kernel.Utils;
 using PdfiumViewer;
 using System.Drawing.Imaging;
+using System.Drawing.Printing;
 
 namespace PdfCutter
 {
@@ -274,6 +275,43 @@ namespace PdfCutter
                     catch (Exception ex)
                     {
                         MessageBox.Show($"保存出错: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void btnPrint_Click(object sender, EventArgs e)
+        {
+            Image? imageToPrint = cutPreviewImage ?? currentPageImage;
+            if (imageToPrint == null)
+            {
+                MessageBox.Show("没有可打印的内容。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            using (PrintDialog printDialog = new PrintDialog())
+            {
+                PrintDocument printDoc = new PrintDocument();
+                printDoc.PrintPage += (s, ev) =>
+                {
+                    // 计算图片适应页面的大小
+                    Rectangle marginBounds = ev.MarginBounds;
+                    float scale = Math.Min((float)marginBounds.Width / imageToPrint.Width, (float)marginBounds.Height / imageToPrint.Height);
+                    int printWidth = (int)(imageToPrint.Width * scale);
+                    int printHeight = (int)(imageToPrint.Height * scale);
+                    int x = marginBounds.X + (marginBounds.Width - printWidth) / 2;
+                    int y = marginBounds.Y + (marginBounds.Height - printHeight) / 2;
+                    ev.Graphics.DrawImage(imageToPrint, x, y, printWidth, printHeight);
+                };
+                printDialog.Document = printDoc;
+                if (printDialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        printDoc.Print();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"打印出错: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
